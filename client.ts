@@ -60,11 +60,3 @@ export default class Client {
     return new URL(url, this.baseUrl).toString()
   }
 }
-
-export const frontendClient = () => {
-  return new Client(process.env.REACT_APP_FRONTEND_API_URL)
-}
-
-export const backendClient = () => {
-  return new Client(process.env.REACT_APP_BACKEND_API_URL)
-}
