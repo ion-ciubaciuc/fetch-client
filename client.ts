@@ -10,7 +10,7 @@ export default class Client {
     })
   }
 
-  withHeaders(headers: Record<string, string>) {
+  public withHeaders = (headers: Record<string, string>) => {
     Object.entries(headers).forEach(([key, value]) => {
       this.headers.append(key, value)
     })
@@ -18,36 +18,66 @@ export default class Client {
     return this
   }
 
-  get(url: string, query: object = {}) {
+  public get = (url: string, query: object = {}) => {
     url = this.appendQuery(url, query)
 
     return this.fetch(url, 'get')
   }
 
-  post(url: string, data: object = {}) {
+  public post = (url: string, data: object = {}) => {
     return this.fetch(url, 'post', data)
   }
 
-  patch(url: string, data: object = {}) {
+  public patch = (url: string, data: object = {}) => {
     return this.fetch(url, 'patch', data)
   }
 
-  delete(url: string, data: object = {}) {
+  public delete = (url: string, data: object = {}) => {
     return this.fetch(url, 'delete', data)
   }
 
-  private fetch(url: string, method: string, data: object = {}) {
+  private fetch = async (url: string, method: string, data: object = {}) => {
     url = this.prepareUrl(url)
 
-    return fetch(url, {
+    const init: RequestInit = {
       headers: this.headers,
       method: method,
-      body: JSON.stringify(data),
-    })
+    }
+
+    if (!this.isEmpty(data)) {
+      init.body = JSON.stringify(data)
+    }
+
+    const response = await fetch(url, init)
+
+    if (response.status === 204) {
+      return
+    }
+
+    const responseData = await this.getResponseBody(response)
+
+    if (!response.ok) {
+      const message = `Error ${response.status}: ${response.statusText}`
+      throw new RequestError(message, responseData)
+    }
+
+    return responseData
   }
 
-  private appendQuery(url: string, query: object): string {
-    const _url = new URL(url)
+  private getResponseBody = async (response: Response) => {
+    const responseClone = response.clone()
+
+    try {
+      return await response.json()
+    } catch (error) {}
+
+    try {
+      return await responseClone.text()
+    } catch (error) {}
+  }
+
+  private appendQuery = (url: string, query: object): string => {
+    const _url = new URL(url, this.baseUrl)
 
     Object.entries(query).forEach(([key, value]) => {
       _url.searchParams.append(key, value)
@@ -56,7 +86,19 @@ export default class Client {
     return _url.toString()
   }
 
-  private prepareUrl(url: string): string {
+  private prepareUrl = (url: string): string => {
     return new URL(url, this.baseUrl).toString()
+  }
+
+  private isEmpty = (data: object): boolean => {
+    return Object.keys(data).length === 0
+  }
+}
+
+class RequestError extends Error {
+  data: object
+  constructor(message: string, data: object) {
+    super(message)
+    this.data = data
   }
 }
